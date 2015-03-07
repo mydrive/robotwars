@@ -199,9 +199,47 @@ class Jonny
     puts events unless events.empty?
     max_speed
     change_heading
+    process_events
   end
 
   def change_heading
     avoid_edges || zig_zag
   end
+
+  def process_events
+    robots_spotted(events['robot_scanned']) if events.include? 'robot_scanned'
+  end
+
+  def robots_spotted(targets)
+    fire_at(select_target_from(targets))
+  end
+
+  def fire_at(bearing)
+    puts "FIRING AT: #{bearing}"
+  end
+
+  def select_target_from(targets)
+    case targets.size
+    when 1
+      targets.first
+    else
+      choose_closest_target targets
+      # choose_closest_to_current_heading(target_bearings)
+    end
+  end
+
+  def choose_closest_target(targets)
+    targets.flatten.min
+  end
+
+  # def choose_closest_to_current_heading(target_bearings)
+  #   target_bearings.inject(361) do |memo, target_bearing|
+  #     difference = (((360 + gun_heading) - target_bearing.first) % 360).abs
+  #     if difference < memo
+  #       difference
+  #     else
+  #       memo
+  #     end
+  #   end
+  # end
 end
