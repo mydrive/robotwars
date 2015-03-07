@@ -242,6 +242,17 @@ module FixedGunDirection
   end
 end
 
+# Provides helpful radar scanning methods
+module RadarScanner
+  include BearingDifferentialEngine
+
+  def align_radar(heading_change)
+    @radar_target_bearing ||= 0
+
+    turn_radar bearing_correction(radar_heading, @radar_target_bearing, (heading_change * -1))
+  end
+end
+
 # Jonny Robot class
 class Jonny
   include Robot
