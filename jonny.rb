@@ -235,12 +235,13 @@ class Jonny
   include ZigZagMovement
   include CruiseControl
   include DistanceBasedFireControl
+  include FixedGunDirection
 
-  def tick(events)
-    puts events unless events.empty?
+  def tick(_events)
     max_speed
-    change_heading
     process_events
+    heading_difference = change_heading
+    align_gun heading_difference
   end
 
   def change_heading
