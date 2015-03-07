@@ -88,39 +88,53 @@ module EdgeAvoidance
   end
 
   def turn_away_from_right
-    case
-    when facing_north?
-      turn(10)
-    when facing_south?
-      turn(-10)
-    end
+    heading_change =
+      case
+      when facing_north? then 10
+      when facing_south? then -10
+      end
+
+    turn heading_change
+    heading_change
   end
 
   def turn_away_from_left
-    case
-    when facing_north?
-      turn(-10)
-    when facing_south?
-      turn(10)
-    end
+    heading_change =
+      case
+      when facing_north?
+        turn(-10)
+      when facing_south?
+        turn(10)
+      end
+
+    turn heading_change
+    heading_change
   end
 
   def turn_away_from_top
-    case
-    when facing_east?
-      turn(-10)
-    when facing_west?
-      turn(10)
-    end
+    heading_change =
+      case
+      when facing_east?
+        turn(-10)
+      when facing_west?
+        turn(10)
+      end
+
+    turn heading_change
+    heading_change
   end
 
   def turn_away_from_bottom
-    case
-    when facing_east?
-      turn(10)
-    when facing_west?
-      turn(-10)
-    end
+    heading_change =
+      case
+      when facing_east?
+        turn(10)
+      when facing_west?
+        turn(-10)
+      end
+
+    turn heading_change
+    heading_change
   end
 end
 
@@ -146,7 +160,10 @@ module ZigZagMovement
       @zig_decision_point = rand @zig_decision_point_range
     end
 
-    turn(@zig_turn_speed * @zig_direction)
+    heading_change = @zig_turn_speed * @zig_direction
+
+    turn heading_change
+    heading_change
   end
 end
 
