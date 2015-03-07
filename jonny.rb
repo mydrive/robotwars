@@ -169,18 +169,20 @@ module CruiseControl
 end
 
 # Fires as much as possible without reaching heat limit
-module HeatLimitingFireControl
-  def fire_with_heat_limit
-    fire choose_shot_power
+module DistanceBasedFireControl
+  def fire_limiting_heat(target_distance)
+    fire choose_shot_power target_distance
   end
 
-  def choose_shot_power
-    case gun_heat
-    when 0 then 2.4
-    when 0.0..0.5 then 2.4
-    when 0.5..1.0 then 1.4
-    when 1.0..1.5 then 0.9
-    when 1.5..2.0 then 0.4
+  def choose_shot_power(target_distance)
+    case target_distance
+    when 0.0..100 then 3
+    when 100..200 then 2
+    when 200..300 then 1
+    when 300..400 then 0.5
+    when 400..500 then 0.4
+    when 500..600 then 0.3
+    when 600..700 then 0.2
     else 0.1
     end
   end
@@ -192,7 +194,7 @@ class Jonny
   include EdgeAvoidance
   include ZigZagMovement
   include CruiseControl
-  include HeatLimitingFireControl
+  include DistanceBasedFireControl
 
   def initialize
     @max_speed = 8
@@ -213,8 +215,8 @@ class Jonny
     robots_spotted(events['robot_scanned']) if events.include? 'robot_scanned'
   end
 
-  def robots_spotted(_targets)
-    fire_with_heat_limit
+  def robots_spotted(targets)
+    fire_limiting_heat(select_target_from(targets))
   end
 
   def select_target_from(targets)
