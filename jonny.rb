@@ -247,7 +247,7 @@ class Jonny
   def select_target_from(targets)
     case targets.size
     when 1
-      targets.first
+      targets.flatten.first
     else
       choose_closest_target targets
     end
