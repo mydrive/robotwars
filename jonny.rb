@@ -236,10 +236,6 @@ class Jonny
   include CruiseControl
   include DistanceBasedFireControl
 
-  def initialize
-    @max_speed = 8
-  end
-
   def tick(events)
     puts events unless events.empty?
     max_speed
