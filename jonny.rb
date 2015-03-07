@@ -37,22 +37,6 @@ module DirectionHelper
   def facing_west?
     heading >= 90 && heading < 270
   end
-
-  # def facing_north?
-  #   heading >= 45 && heading < 135
-  # end
-
-  # def facing_south?
-  #   heading >= 225 && heading < 315
-  # end
-
-  # def facing_east?
-  #   heading >= 315 || heading < 45
-  # end
-
-  # def facing_west
-  #   heading >= 135 && heading < 225
-  # end
 end
 
 # Helpers to detect battlefield edges
