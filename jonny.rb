@@ -192,6 +192,7 @@ class Jonny
   include EdgeAvoidance
   include ZigZagMovement
   include CruiseControl
+  include HeatLimitingFireControl
 
   def initialize
     @max_speed = 8
@@ -212,12 +213,8 @@ class Jonny
     robots_spotted(events['robot_scanned']) if events.include? 'robot_scanned'
   end
 
-  def robots_spotted(targets)
-    fire_at(select_target_from(targets))
-  end
-
-  def fire_at(bearing)
-    puts "FIRING AT: #{bearing}"
+  def robots_spotted(_targets)
+    fire_with_heat_limit
   end
 
   def select_target_from(targets)
@@ -226,7 +223,6 @@ class Jonny
       targets.first
     else
       choose_closest_target targets
-      # choose_closest_to_current_heading(target_bearings)
     end
   end
 
