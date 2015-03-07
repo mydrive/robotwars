@@ -1,6 +1,25 @@
 require 'rrobots'
 require 'byebug'
 
+# Helpers for finding the edges of your robot
+module RobotEdgeDetector
+  def robot_left_edge
+    x - size
+  end
+
+  def robot_right_edge
+    x + size
+  end
+
+  def robot_top_edge
+    y - size
+  end
+
+  def robot_bottom_edge
+    y + size
+  end
+end
+
 # Helpers to robots direction
 module DirectionHelper
   def facing_north?
@@ -38,6 +57,9 @@ end
 
 # Helpers to detect battlefield edges
 module BattlefieldEdgeDetector
+  include RobotEdgeDetector
+  NEAR_EDGE_PROXIMITY = 30
+
   def hit_left_edge?
     robot_left_edge <= 0
   end
@@ -47,78 +69,28 @@ module BattlefieldEdgeDetector
   end
 
   def near_left_edge?
-    robot_left_edge - @near_edge_proximity <= 0
+    robot_left_edge - NEAR_EDGE_PROXIMITY <= 0
   end
 
   def near_right_edge?
-    robot_right_edge + @near_edge_proximity >= battlefield_width
+    robot_right_edge + NEAR_EDGE_PROXIMITY >= battlefield_width
   end
 
   def near_top_edge?
-    robot_top_edge - @near_edge_proximity <= 0
+    robot_top_edge - NEAR_EDGE_PROXIMITY <= 0
   end
 
   def near_bottom_edge?
-    robot_bottom_edge + @near_edge_proximity >= battlefield_height
+    robot_bottom_edge + NEAR_EDGE_PROXIMITY >= battlefield_height
   end
 end
 
-# Helpers for finding the edges of your robot
-module RobotEdgeDetector
-  def robot_left_edge
-    x - size
-  end
-
-  def robot_right_edge
-    x + size
-  end
-
-  def robot_top_edge
-    y - size
-  end
-
-  def robot_bottom_edge
-    y + size
-  end
-end
-
-# Jonny Robot class
-# How will it perform.....
-# .....poorly!
-class Jonny
-  include Robot
+# This helper provides methods for turning away from the edges
+module EdgeAvoidance
   include DirectionHelper
   include BattlefieldEdgeDetector
-  include RobotEdgeDetector
 
-  def initialize
-    @zig_direction = 1
-    @zig_count = 0
-    @zig_decision_point_range = 4..20
-    @zig_decision_point = rand(@zig_decision_point_range)
-    @turn_speed = 10
-    @near_edge_proximity = 30
-    @max_speed = 8
-  end
-
-  def tick(events)
-    puts events
-    puts "Gun Heading #{gun_heading}"
-    # zig_zag
-    rotate
-    to_speed @max_speed
-  end
-
-  def to_speed(target)
-    case
-    when speed > target
-      accelerate(speed - 1)
-    when speed < target
-      accelerate(speed + 1)
-    end
-  end
-
-  def rotate
+  def avoid_edges
     case
     when near_right_edge?
       turn_away_from_right
@@ -128,24 +100,8 @@ class Jonny
       turn_away_from_top
     when near_bottom_edge?
       turn_away_from_bottom
-    else
-      zig_zag
     end
   end
-
-  def zig_zag
-    @zig_count += 1
-
-    if @zig_count >= @zig_decision_point
-      @zig_direction *= -1
-      @zig_count = 0
-      @zig_decision_point = rand @zig_decision_point_range
-    end
-
-    turn(@turn_speed * @zig_direction)
-  end
-
-  private
 
   def turn_away_from_right
     case
@@ -181,5 +137,71 @@ class Jonny
     when facing_west?
       turn(-10)
     end
+  end
+end
+
+# This helper causes your robot to move in a randomised zig zag pattern
+module ZigZagMovement
+  def setup
+    @zig_direction = 1
+    @zig_count = 0
+    @zig_decision_point_range = 4..20
+    @zig_decision_point = rand(@zig_decision_point_range)
+    @zig_turn_speed = 10
+  end
+
+  # You need to call this method every tick you want to continue zig zagging
+  def zig_zag
+    setup unless @zig_count
+
+    @zig_count += 1
+
+    if @zig_count >= @zig_decision_point
+      @zig_direction *= -1
+      @zig_count = 0
+      @zig_decision_point = rand @zig_decision_point_range
+    end
+
+    turn(@zig_turn_speed * @zig_direction)
+  end
+end
+
+# Helpers for controlling speed
+module CruiseControl
+  MAX_SPEED = 8
+
+  def max_speed
+    to_speed MAX_SPEED
+  end
+
+  def to_speed(target)
+    case
+    when speed > target
+      accelerate(-1)
+    when speed < target
+      accelerate 1
+    end
+  end
+end
+
+# Jonny Robot class
+class Jonny
+  include Robot
+  include EdgeAvoidance
+  include ZigZagMovement
+  include CruiseControl
+
+  def initialize
+    @max_speed = 8
+  end
+
+  def tick(events)
+    puts events unless events.empty?
+    max_speed
+    change_heading
+  end
+
+  def change_heading
+    avoid_edges || zig_zag
   end
 end
