@@ -306,15 +306,4 @@ class Jonny
   def choose_closest_target(targets)
     targets.flatten.min
   end
-
-  # def choose_closest_to_current_heading(target_bearings)
-  #   target_bearings.inject(361) do |memo, target_bearing|
-  #     difference = (((360 + gun_heading) - target_bearing.first) % 360).abs
-  #     if difference < memo
-  #       difference
-  #     else
-  #       memo
-  #     end
-  #   end
-  # end
 end
