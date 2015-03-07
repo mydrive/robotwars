@@ -208,6 +208,26 @@ module DistanceBasedFireControl
   end
 end
 
+# Keeps the gun pointing on a single bearing
+module FixedGunDirection
+  def align_gun(heading_change)
+    @gun_target_bearing ||= 0
+
+    diff = bearing_difference - heading_change
+
+    turn_gun diff
+  end
+
+  def bearing_difference
+    from = gun_heading
+    to = @gun_target_bearing
+
+    difference = to - from
+    difference += 360 if difference.abs > 180
+    difference
+  end
+end
+
 # Jonny Robot class
 class Jonny
   include Robot
