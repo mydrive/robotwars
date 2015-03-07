@@ -189,6 +189,7 @@ end
 module DistanceBasedFireControl
   HEAT_LIMIT = 3.to_f
   DECAYING_RANGE_LIMIT = 1000.to_f
+  MINIMUM_POWER = 0.5
 
   def fire_limiting_heat(target_distance)
     fire choose_shot_power target_distance
@@ -197,12 +198,13 @@ module DistanceBasedFireControl
   def choose_shot_power(target_distance)
     case target_distance
     when 0.0..DECAYING_RANGE_LIMIT then calculate_decaying_power target_distance
-    else 0.1
+    else MINIMUM_POWER
     end
   end
 
   def calculate_decaying_power(target_distance)
-    HEAT_LIMIT - (target_distance * (HEAT_LIMIT / DECAYING_RANGE_LIMIT))
+    power = HEAT_LIMIT - (target_distance * (HEAT_LIMIT / DECAYING_RANGE_LIMIT))
+    power < MINIMUM_POWER ? MINIMUM_POWER : power
   end
 end
 
