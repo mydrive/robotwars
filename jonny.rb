@@ -139,7 +139,7 @@ class Jonny
     if @zig_count >= @zig_decision_point
       @zig_direction *= -1
       @zig_count = 0
-      @zip_decision_point = rand @zig_decision_point_range
+      @zig_decision_point = rand @zig_decision_point_range
     end
 
     turn(@turn_speed * @zig_direction)
