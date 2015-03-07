@@ -277,10 +277,10 @@ class Jonny
     say 'Ow, you bastard!'
   end
 
-  def broadcasts_received(broadcasts)
-    broadcasts.each do |broadcast|
-      puts "Broadcast Received: #{broadcast}"
-    end
+  def broadcasts_received(_broadcasts)
+    # broadcasts.each do |broadcast|
+    #   puts "Broadcast Received: #{broadcast}"
+    # end
   end
 
   def select_target_from(targets)
