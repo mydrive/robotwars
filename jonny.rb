@@ -261,12 +261,16 @@ class Jonny
   include CruiseControl
   include DistanceBasedFireControl
   include FixedGunDirection
+  include RadarScanner
 
   def tick(_events)
     max_speed
     process_events
     heading_difference = change_heading
-    align_gun heading_difference
+    # spin_gun 1.5
+    gun_heading_difference = align_gun heading_difference
+    align_radar(heading_difference + gun_heading_difference)
+    # fire 0.1
   end
 
   def change_heading
@@ -292,7 +296,9 @@ class Jonny
   end
 
   def robots_spotted(targets)
+    @gun_target_bearing = radar_heading
     fire_limiting_heat select_target_from targets
+    puts "ROBOT SPOTTED!!! R[#{radar_heading}]"
   end
 
   def been_hit(_hits)
