@@ -213,11 +213,35 @@ class Jonny
   end
 
   def process_events
+    process_scans
+    process_hits
+    process_broadcasts
+  end
+
+  def process_scans
     robots_spotted(events['robot_scanned']) if events.include? 'robot_scanned'
   end
 
+  def process_hits
+    been_hit(events['got_hit']) if events.include? 'got_hit'
+  end
+
+  def process_broadcasts
+    broadcasts_received(events['broadcasts']) if events.include? 'broadcasts'
+  end
+
   def robots_spotted(targets)
-    fire_limiting_heat(select_target_from(targets))
+    fire_limiting_heat select_target_from targets
+  end
+
+  def been_hit(_hits)
+    say 'Ow, you bastard!'
+  end
+
+  def broadcasts_received(broadcasts)
+    broadcasts.each do |broadcast|
+      puts "Broadcast Received: #{broadcast}"
+    end
   end
 
   def select_target_from(targets)
