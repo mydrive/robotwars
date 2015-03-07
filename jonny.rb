@@ -168,6 +168,24 @@ module CruiseControl
   end
 end
 
+# Fires as much as possible without reaching heat limit
+module HeatLimitingFireControl
+  def fire_with_heat_limit
+    fire choose_shot_power
+  end
+
+  def choose_shot_power
+    case gun_heat
+    when 0 then 2.4
+    when 0.0..0.5 then 2.4
+    when 0.5..1.0 then 1.4
+    when 1.0..1.5 then 0.9
+    when 1.5..2.0 then 0.4
+    else 0.1
+    end
+  end
+end
+
 # Jonny Robot class
 class Jonny
   include Robot
