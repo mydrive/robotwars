@@ -140,7 +140,7 @@ end
 
 # This helper causes your robot to move in a randomised zig zag pattern
 module ZigZagMovement
-  def setup
+  def zig_zag_setup
     @zig_direction = 1
     @zig_count = 0
     @zig_decision_point_range = 4..20
@@ -150,7 +150,7 @@ module ZigZagMovement
 
   # You need to call this method every tick you want to continue zig zagging
   def zig_zag
-    setup unless @zig_count
+    zig_zag_setup unless @zig_count
 
     @zig_count += 1
 
@@ -226,13 +226,24 @@ module FixedGunDirection
   include BearingDifferentialEngine
 
   def align_gun(heading_change)
+    # byebug
     @gun_target_bearing ||= 0
+    @previous_gun_bearing ||= gun_heading
 
     gun_bearing_correction = bearing_correction(gun_heading, @gun_target_bearing, heading_change)
 
     turn_gun gun_bearing_correction
 
-    gun_bearing_correction
+    gun_moved = (gun_heading - @previous_gun_bearing) % 360
+
+    gun_end_of_tick_cleanup
+
+    gun_moved
+  end
+
+  def gun_end_of_tick_cleanup
+    puts "Gun Heading #{gun_heading}"
+    @previous_gun_bearing = gun_heading
   end
 
   def spin_gun(increment)
@@ -246,10 +257,76 @@ end
 module RadarScanner
   include BearingDifferentialEngine
 
+  SEARCH_BANDS = [60, 40, 20, 10]
+
+  def radar_scanner_setup
+    @radar_target_bearing ||= 0
+    @previous_radar_bearing ||= radar_heading
+    @radar_search_band ||= 0
+    @radar_search_direction ||= 1
+    @target_spotted_previous_sweep ||= false
+    @target_spotted_this_sweep ||= false
+  end
+
   def align_radar(heading_change)
+    radar_scanner_setup if @radar_target_bearing.nil?
+
+    new_radar_heading = bearing_correction(radar_heading, @radar_target_bearing, heading_change)
+
+    turn_radar new_radar_heading
+
+    #puts "RADAR: PR[#{@previous_radar_bearing}] CR[#{radar_heading}] NB[#{new_radar_heading}]"
+
+    radar_end_of_tick_cleanup
+  end
+
+  def radar_end_of_tick_cleanup
+    puts "Radar Heading #{radar_heading}"
+    @target_spotted_previous_sweep = @target_spotted_this_sweep
+    @target_spotted_this_sweep = false
+    @previous_radar_bearing = radar_heading
+  end
+
+  def spin_radar(increment)
     @radar_target_bearing ||= 0
 
-    turn_radar bearing_correction(radar_heading, @radar_target_bearing, (heading_change * -1))
+    @radar_target_bearing = (@radar_target_bearing + increment) % 360
+  end
+
+  def scan_for_target
+    unless @target_spotted_previous_sweep || @target_spotted_this_sweep
+      target_lost
+      return
+    end
+
+    case
+    when @target_spotted_this_sweep
+      narrow_search
+    when @target_spotted_previous_sweep
+      puts 'NOT THIS TIME'
+    end
+  end
+
+  def targets_sighted(_targets)
+    puts "ROBOT SPOTTED!!! R1[#{@previous_radar_bearing}] R2[#{radar_heading}]"
+    @target_spotted_this_sweep = true
+  end
+
+  def narrow_search
+    @radar_search_direction *= -1
+    @radar_search_band += 1 if @radar_search_band < (SEARCH_BANDS.size - 1)
+
+    puts "SEARCH BAND #{@radar_search_band}"
+
+    spin_radar(radar_heading + (SEARCH_BANDS[@radar_search_band] * @radar_search_direction))
+  end
+
+  def target_lost
+    puts "Target Lost"
+    @radar_search_direction = 1
+    @radar_search_band = 0
+
+    spin_radar(radar_heading + (SEARCH_BANDS[@radar_search_band] * @radar_search_direction))
   end
 end
 
@@ -267,9 +344,13 @@ class Jonny
     max_speed
     process_events
     heading_difference = change_heading
-    # spin_gun 1.5
+    spin_gun 1.5
+    # scan_for_target
+    byebug
+
     gun_heading_difference = align_gun heading_difference
-    align_radar(heading_difference + gun_heading_difference)
+
+    align_radar(gun_heading_difference)
     # fire 0.1
   end
 
@@ -296,9 +377,7 @@ class Jonny
   end
 
   def robots_spotted(targets)
-    @gun_target_bearing = radar_heading
-    fire_limiting_heat select_target_from targets
-    puts "ROBOT SPOTTED!!! R[#{radar_heading}]"
+    targets_sighted targets
   end
 
   def been_hit(_hits)
