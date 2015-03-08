@@ -188,8 +188,8 @@ end
 # Fires as much as possible without reaching heat limit
 module DistanceBasedFireControl
   HEAT_LIMIT = 3.to_f
-  DECAYING_RANGE_LIMIT = 1000.to_f
-  MINIMUM_POWER = 0.5
+  DECAYING_RANGE_LIMIT = 700.to_f
+  MINIMUM_POWER = 0.2
 
   def fire_limiting_heat(target_distance)
     fire choose_shot_power target_distance
@@ -226,7 +226,6 @@ module FixedGunDirection
   include BearingDifferentialEngine
 
   def align_gun(heading_change)
-    # byebug
     @gun_target_bearing ||= 0
     @previous_gun_bearing ||= gun_heading
 
@@ -242,7 +241,6 @@ module FixedGunDirection
   end
 
   def gun_end_of_tick_cleanup
-    puts "Gun Heading #{gun_heading}"
     @previous_gun_bearing = gun_heading
   end
 
@@ -257,13 +255,15 @@ end
 module RadarScanner
   include BearingDifferentialEngine
 
-  SEARCH_BANDS = [60, 40, 20, 10]
+  SEARCH_BANDS = [60, 50, 40, 30, 20, 10]
+  FIRE_IN_BAND = 0
 
   def radar_scanner_setup
     @radar_target_bearing ||= 0
     @previous_radar_bearing ||= radar_heading
     @radar_search_band ||= 0
     @radar_search_direction ||= 1
+    # @target_spotted_two_sweeps_ago ||= false
     @target_spotted_previous_sweep ||= false
     @target_spotted_this_sweep ||= false
   end
@@ -275,13 +275,11 @@ module RadarScanner
 
     turn_radar new_radar_heading
 
-    #puts "RADAR: PR[#{@previous_radar_bearing}] CR[#{radar_heading}] NB[#{new_radar_heading}]"
-
     radar_end_of_tick_cleanup
   end
 
   def radar_end_of_tick_cleanup
-    puts "Radar Heading #{radar_heading}"
+    # @target_spotted_two_sweeps_ago = @target_spotted_previous_sweep
     @target_spotted_previous_sweep = @target_spotted_this_sweep
     @target_spotted_this_sweep = false
     @previous_radar_bearing = radar_heading
@@ -294,39 +292,62 @@ module RadarScanner
   end
 
   def scan_for_target
-    unless @target_spotted_previous_sweep || @target_spotted_this_sweep
-      target_lost
-      return
-    end
+    no_target unless @target_spotted_previous_sweep || @target_spotted_this_sweep
 
     case
     when @target_spotted_this_sweep
-      narrow_search
+      @gun_target_bearing = radar_heading unless target_locked?
+      fire_if_search_narrow_enough
+      zone_in_on_target
     when @target_spotted_previous_sweep
-      puts 'NOT THIS TIME'
+      next_sweep
     end
   end
 
-  def targets_sighted(_targets)
-    puts "ROBOT SPOTTED!!! R1[#{@previous_radar_bearing}] R2[#{radar_heading}]"
+  def zone_in_on_target
+    swap_sweep_direction
+    narrow_search_band
+    next_sweep
+  end
+
+  def fire_if_search_narrow_enough
+    case @radar_search_direction
+    when 1
+      range_start = @previous_radar_bearing
+      range_end = radar_heading
+    when -1
+      range_start = radar_heading
+      range_end = @previous_radar_bearing
+    end
+    fire_on_target_between(range_start, range_end, @target_distance) if target_locked?
+  end
+
+  def target_locked?
+    @radar_search_band >= FIRE_IN_BAND
+  end
+
+  def targets_sighted(targets)
     @target_spotted_this_sweep = true
+    @target_distance = select_target_from targets
   end
 
-  def narrow_search
-    @radar_search_direction *= -1
-    @radar_search_band += 1 if @radar_search_band < (SEARCH_BANDS.size - 1)
-
-    puts "SEARCH BAND #{@radar_search_band}"
-
-    spin_radar(radar_heading + (SEARCH_BANDS[@radar_search_band] * @radar_search_direction))
-  end
-
-  def target_lost
-    puts "Target Lost"
+  def no_target
     @radar_search_direction = 1
     @radar_search_band = 0
 
-    spin_radar(radar_heading + (SEARCH_BANDS[@radar_search_band] * @radar_search_direction))
+    next_sweep
+  end
+
+  def swap_sweep_direction
+    @radar_search_direction *= -1
+  end
+
+  def next_sweep
+    spin_radar(SEARCH_BANDS[@radar_search_band] * @radar_search_direction)
+  end
+
+  def narrow_search_band
+    @radar_search_band += 1 if @radar_search_band < (SEARCH_BANDS.size - 1)
   end
 end
 
@@ -340,18 +361,59 @@ class Jonny
   include FixedGunDirection
   include RadarScanner
 
+  def initialize
+    @gun_sweep_direction = 1
+  end
+
   def tick(_events)
     max_speed
     process_events
     heading_difference = change_heading
-    spin_gun 1.5
-    # scan_for_target
-    byebug
+    scan_for_target
 
     gun_heading_difference = align_gun heading_difference
 
     align_radar(gun_heading_difference)
-    # fire 0.1
+  end
+
+  def fire_on_target_between(range_start, range_end, target_distance)
+    if gun_in_target_range(range_start, range_end)
+      move_gun_in_range(range_start, range_end)
+      fire_limiting_heat target_distance
+    else
+      move_gun_to_range(range_start, range_end)
+    end
+  end
+
+  def move_gun_in_range(range_start, range_end)
+    if gun_heading == range_start
+      @gun_sweep_direction = 1
+    elsif gun_heading == range_end
+      @gun_sweep_direction = -1
+    end
+
+    @gun_target_bearing += 1 * @gun_sweep_direction
+  end
+
+  def move_gun_to_range(range_start, range_end)
+    bearing_to_range_start = bearing_correction(@gun_target_bearing, range_start, 0)
+    bearing_to_range_end = bearing_correction(@gun_target_bearing, range_end, 0)
+
+    # We want to spin the gun to the closest end of the range
+    if bearing_to_range_start.abs > bearing_to_range_end.abs
+      spin_gun bearing_to_range_end
+    else
+      spin_gun bearing_to_range_start
+    end
+  end
+
+  def gun_in_target_range(range_start, range_end)
+    # If the range crosses the 360 boundary
+    if range_start > range_end
+      gun_heading >= range_start || gun_heading <= range_end
+    else
+      gun_heading.between?(range_start, range_end)
+    end
   end
 
   def change_heading
